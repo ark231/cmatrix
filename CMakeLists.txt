@@ -59,6 +59,10 @@ add_executable(cmatrix cmatrix.c)
 
 target_link_libraries(cmatrix ${CURSES_LIBRARIES})
 
+if(DEFINED DEBUG)
+	target_compile_options(cmatrix PUBLIC -g3)
+endif()
+
 install(TARGETS cmatrix DESTINATION bin)
 
 if     (UNIX)
