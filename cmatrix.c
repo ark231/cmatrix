@@ -335,12 +335,12 @@ int gen_random_char(const char_range* all_ranges,index_char_ranges selected_rang
 int gen_new_scroll_char(const char_range* all_ranges,const int classic_or_not){
     int result = -1;
     if(classic_or_not == 1){
-        int decide_chartype = (int) rand() % 10;
-        if(0 < decide_chartype && decide_chartype < 7){//70 percent
+        int decide_chartype = (int) rand() % 100;
+        if(0 < decide_chartype && decide_chartype < 80){//80 percent
             result = gen_random_char(all_ranges,FULL_WIDTH_KATAKANA);
-        }else if(7 <= decide_chartype && decide_chartype <= 8){//20 percent
+        }else if(80 <= decide_chartype && decide_chartype <= 95){//15 percent
             result = gen_random_char(all_ranges,FULL_WIDTH_LATIN);
-        }else{//10 percent
+        }else{//5 percent
             result = gen_random_char(all_ranges,KANJI);
         }
     }else{
@@ -568,8 +568,8 @@ if (console) {
             randranges[FULL_WIDTH_KATAKANA].randmin = 0x30a1;
             randranges[FULL_WIDTH_KATAKANA].highnum = 0x30fa;
 
-            randranges[FULL_WIDTH_LATIN].randmin = 0xff21;
-            randranges[FULL_WIDTH_LATIN].highnum = 0xff3a;
+            randranges[FULL_WIDTH_LATIN].randmin = 0xff01;
+            randranges[FULL_WIDTH_LATIN].highnum = 0xff5d;
 
             randranges[KANJI].randmin = 0x4e00;
             randranges[KANJI].highnum = 0x9f62;
