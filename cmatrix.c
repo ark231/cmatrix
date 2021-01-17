@@ -73,6 +73,22 @@ typedef struct cmatrix {
     bool is_head;
 } cmatrix;
 
+/* character range typedef */
+typedef struct char_range {
+    int randnum;
+    int randmin;
+    int highnum;
+} char_range;
+
+typedef enum{
+    HALF_WIDTH_LATIN = 0,
+    HALF_WIDTH_KATAKANA,
+    FULL_WIDTH_KATAKANA,
+    KANJI,
+    FULL_WIDTH_LATIN,
+    NUM_OF_RANGES
+}index_char_ranges;
+
 /* Global variables */
 int console = 0;
 int xwindow = 0;
@@ -310,6 +326,28 @@ void add_wide_char(int char_print){
     char_array[1] = 0;
     addwstr(char_array);
 }
+
+/*generate random number within specified range*/
+int gen_random_char(const char_range* all_ranges,index_char_ranges selected_range){
+    return (int) rand() % all_ranges[selected_range].randnum + all_ranges[selected_range].randmin;
+}
+
+int gen_new_scroll_char(const char_range* all_ranges,const int classic_or_not){
+    int result = -1;
+    if(classic_or_not == 1){
+        int decide_chartype = (int) rand() % 10;
+        if(0 < decide_chartype && decide_chartype < 7){//70 percent
+            result = gen_random_char(all_ranges,FULL_WIDTH_KATAKANA);
+        }else if(7 <= decide_chartype && decide_chartype <= 8){//20 percent
+            result = gen_random_char(all_ranges,FULL_WIDTH_LATIN);
+        }else{//10 percent
+            result = gen_random_char(all_ranges,KANJI);
+        }
+    }else{
+        result = gen_random_char(all_ranges,HALF_WIDTH_LATIN);
+    }
+    return result;
+}
 int main(int argc, char *argv[]) {
     int i, y, z, optchr, keypress;
     int j = 0;
@@ -322,17 +360,22 @@ int main(int argc, char *argv[]) {
     int oldstyle = 0;
     int random = 0;
     int update = 4;
-    int highnum = 0;
     int mcolor = COLOR_GREEN;
     int rainbow = 0;
     int lambda = 0;
-    int randnum = 0;
-    int randmin = 0;
     int pause = 0;
     int classic = 0;
     int changes = 0;
     char *msg = "";
     char *tty = NULL;
+    int k,l;
+    char_range randranges[NUM_OF_RANGES];
+    //initialize array
+    for(k=0;k<NUM_OF_RANGES;k++){
+        randranges[k].randmin = 0;
+        randranges[k].highnum = 0;
+        randranges[k].randnum = 0;
+    }
 
     srand((unsigned) time(NULL));
     setlocale(LC_ALL, "");
@@ -519,26 +562,30 @@ if (console) {
     /* Set up values for random number generation */
     if(classic) {
         if(oldstyle){//my method (wide space) doesn't work with old style...
-            randmin = 0xff66;
-            highnum = 0xff9d;
+            randranges[HALF_WIDTH_KATAKANA].randmin = 0xff66;
+            randranges[HALF_WIDTH_KATAKANA].highnum = 0xff9d;
         }else{
-            /*FULL WIDTH katakana
-            randmin = 0x30a1;
-            highnum = 0x30fa;
-            */
-            /*FULL WIDTH alphabets*/
-            randmin = 0xff21;
-            highnum = 0xff3a;
+            randranges[FULL_WIDTH_KATAKANA].randmin = 0x30a1;
+            randranges[FULL_WIDTH_KATAKANA].highnum = 0x30fa;
+
+            randranges[FULL_WIDTH_LATIN].randmin = 0xff21;
+            randranges[FULL_WIDTH_LATIN].highnum = 0xff3a;
+
+            randranges[KANJI].randmin = 0x4e00;
+            randranges[KANJI].highnum = 0x9f62;
+
             char_space = 0x3000;//FULL WIDTH space character
         }
     } else if (console || xwindow) {
-        randmin = 166;
-        highnum = 217;
+        randranges[HALF_WIDTH_LATIN].randmin = 166;
+        randranges[HALF_WIDTH_LATIN].highnum = 217;
     } else {
-        randmin = 33;
-        highnum = 123;
+        randranges[HALF_WIDTH_LATIN].randmin = 33;
+        randranges[HALF_WIDTH_LATIN].highnum = 123;
     }
-    randnum = highnum - randmin;
+    for(l=0;l<NUM_OF_RANGES;l++){
+        randranges[l].randnum=randranges[l].highnum-randranges[l].randmin;
+    }
 
     var_init();
 
@@ -667,7 +714,11 @@ if (console) {
                     for (i = LINES - 1; i >= 1; i--) {
                         matrix[i][j].val = matrix[i - 1][j].val;
                     }
-                    random = (int) rand() % (randnum + 8) + randmin;
+                    if(classic){
+                        random = (int) rand() % (randranges[HALF_WIDTH_KATAKANA].randnum + 8) + randranges[HALF_WIDTH_KATAKANA].randmin;
+                    }else{
+                        random = (int) rand() % (randranges[HALF_WIDTH_LATIN].randnum + 8) + randranges[HALF_WIDTH_LATIN].randmin;
+                    }
 
                     if (matrix[1][j].val == 0) {
                         matrix[0][j].val = 1;
@@ -684,14 +735,23 @@ if (console) {
                             if (((int) rand() % 3) == 1) {
                                 matrix[0][j].val = 0;
                             } else {
-                                matrix[0][j].val = (int) rand() % randnum + randmin;
+                                if(classic){
+                                    matrix[0][j].val = gen_random_char(randranges,HALF_WIDTH_KATAKANA);
+                                }else{
+                                    matrix[0][j].val = gen_random_char(randranges,HALF_WIDTH_LATIN);
+                                }
                             }
                             spaces[j] = (int) rand() % LINES + 1;
                         }
-                    } else if (random > highnum && matrix[1][j].val != 1) {
+                    } else if (((classic && random > randranges[HALF_WIDTH_KATAKANA].highnum ) || 
+                            (!classic && random > randranges[HALF_WIDTH_LATIN].highnum)) && matrix[1][j].val != 1) {
                         matrix[0][j].val = char_space;
                     } else {
-                        matrix[0][j].val = (int) rand() % randnum + randmin;
+                        if(classic){
+                            matrix[i][j].val = gen_random_char(randranges,HALF_WIDTH_KATAKANA);
+                        }else{
+                            matrix[i][j].val = gen_random_char(randranges,HALF_WIDTH_LATIN);
+                        }
                     }
 
                 } else { /* New style scrolling (default) */
@@ -701,8 +761,7 @@ if (console) {
                     } else if (matrix[0][j].val == -1
                         && matrix[1][j].val == char_space) {
                         length[j] = (int) rand() % (LINES - 3) + 3;
-                        matrix[0][j].val = (int) rand() % randnum + randmin;
-
+                        matrix[0][j].val = gen_new_scroll_char(randranges,classic);
                         spaces[j] = (int) rand() % LINES + 1;
                     }
                     i = 0;
@@ -727,8 +786,9 @@ if (console) {
                                matrix[i][j].val != -1)) {
                             matrix[i][j].is_head = false;
                             if(changes) {
-                                if(rand() % 8 == 0)
-                                    matrix[i][j].val = (int) rand() % randnum + randmin;
+                                if(rand() % 8 == 0){
+                                    matrix[i][j].val = gen_new_scroll_char(randranges,classic);
+                                }
                             }
                             i++;
                             y++;
@@ -739,7 +799,7 @@ if (console) {
                             continue;
                         }
 
-                        matrix[i][j].val = (int) rand() % randnum + randmin;
+                        matrix[i][j].val = gen_new_scroll_char(randranges,classic);
                         matrix[i][j].is_head = true;
 
                         /* If we're at the top of the column and it's reached its
