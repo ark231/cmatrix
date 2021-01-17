@@ -81,6 +81,7 @@ cmatrix **matrix = (cmatrix **) NULL;
 int *length = NULL;  /* Length of cols in each line */
 int *spaces = NULL;  /* Spaces left to fill */
 int *updates = NULL; /* What does this do again? */
+int char_space = ' ';
 #ifndef _WIN32
 volatile sig_atomic_t signal_status = 0; /* Indicates a caught signal */
 #endif
@@ -226,7 +227,7 @@ void var_init() {
         length[j] = (int) rand() % (LINES - 3) + 3;
 
         /* Sentinel value for creation of new objects */
-        matrix[1][j].val = ' ';
+        matrix[1][j].val = char_space;
 
         /* And set updates[] array for update speed. */
         updates[j] = (int) rand() % 3 + 1;
@@ -302,6 +303,13 @@ void resize_screen(void) {
     refresh();
 }
 
+/*print unicode character*/
+void add_wide_char(int char_print){
+    wchar_t char_array[2];
+    char_array[0] = char_print;
+    char_array[1] = 0;
+    addwstr(char_array);
+}
 int main(int argc, char *argv[]) {
     int i, y, z, optchr, keypress;
     int j = 0;
@@ -510,12 +518,19 @@ if (console) {
 
     /* Set up values for random number generation */
     if(classic) {
-        /* Half-width kana characters. In the movie they are y-axis flipped, and
-         * they appear alongside latin characters and numerals, but this is the
-         * closest we can do with a standard unicode set and a single number
-         * range */
-        randmin = 0xff66;
-        highnum = 0xff9d;
+        if(oldstyle){//my method (wide space) doesn't work with old style...
+            randmin = 0xff66;
+            highnum = 0xff9d;
+        }else{
+            /*FULL WIDTH katakana
+            randmin = 0x30a1;
+            highnum = 0x30fa;
+            */
+            /*FULL WIDTH alphabets*/
+            randmin = 0xff21;
+            highnum = 0xff3a;
+            char_space = 0x3000;//FULL WIDTH space character
+        }
     } else if (console || xwindow) {
         randmin = 166;
         highnum = 217;
@@ -656,10 +671,10 @@ if (console) {
 
                     if (matrix[1][j].val == 0) {
                         matrix[0][j].val = 1;
-                    } else if (matrix[1][j].val == ' '
+                    } else if (matrix[1][j].val == char_space
                              || matrix[1][j].val == -1) {
                         if (spaces[j] > 0) {
-                            matrix[0][j].val = ' ';
+                            matrix[0][j].val = char_space;
                             spaces[j]--;
                         } else {
 
@@ -674,17 +689,17 @@ if (console) {
                             spaces[j] = (int) rand() % LINES + 1;
                         }
                     } else if (random > highnum && matrix[1][j].val != 1) {
-                        matrix[0][j].val = ' ';
+                        matrix[0][j].val = char_space;
                     } else {
                         matrix[0][j].val = (int) rand() % randnum + randmin;
                     }
 
                 } else { /* New style scrolling (default) */
-                    if (matrix[0][j].val == -1 && matrix[1][j].val == ' '
+                    if (matrix[0][j].val == -1 && matrix[1][j].val == char_space
                         && spaces[j] > 0) {
                         spaces[j]--;
                     } else if (matrix[0][j].val == -1
-                        && matrix[1][j].val == ' ') {
+                        && matrix[1][j].val == char_space) {
                         length[j] = (int) rand() % (LINES - 3) + 3;
                         matrix[0][j].val = (int) rand() % randnum + randmin;
 
@@ -696,7 +711,7 @@ if (console) {
                     while (i <= LINES) {
 
                         /* Skip over spaces */
-                        while (i <= LINES && (matrix[i][j].val == ' ' ||
+                        while (i <= LINES && (matrix[i][j].val == char_space ||
                                matrix[i][j].val == -1)) {
                             i++;
                         }
@@ -708,7 +723,7 @@ if (console) {
                         /* Go to the head of this column */
                         z = i;
                         y = 0;
-                        while (i <= LINES && (matrix[i][j].val != ' ' &&
+                        while (i <= LINES && (matrix[i][j].val != char_space &&
                                matrix[i][j].val != -1)) {
                             matrix[i][j].is_head = false;
                             if(changes) {
@@ -720,7 +735,7 @@ if (console) {
                         }
 
                         if (i > LINES) {
-                            matrix[z][j].val = ' ';
+                            matrix[z][j].val = char_space;
                             continue;
                         }
 
@@ -733,7 +748,7 @@ if (console) {
                            already growing from growing accidentally =>
                          */
                         if (y > length[j] || firstcoldone) {
-                            matrix[z][j].val = ' ';
+                            matrix[z][j].val = char_space;
                             matrix[0][j].val = -1;
                         }
                         firstcoldone = 1;
@@ -762,14 +777,14 @@ if (console) {
                     }
                     if (matrix[i][j].val == 0) {
                         if (console || xwindow) {
-                            addch(183);
+                            add_wide_char(183);
                         } else {
-                            addch('&');
+                            add_wide_char('&');
                         }
                     } else if (matrix[i][j].val == -1) {
-                        addch(' ');
+                        add_wide_char(char_space);
                     } else {
-                        addch(matrix[i][j].val);
+                        add_wide_char(matrix[i][j].val);
                     }
 
                     attroff(COLOR_PAIR(COLOR_WHITE));
@@ -809,7 +824,7 @@ if (console) {
                         if (bold) {
                             attron(A_BOLD);
                         }
-                        addch('|');
+                        add_wide_char('|');
                         if (bold) {
                             attroff(A_BOLD);
                         }
@@ -822,19 +837,16 @@ if (console) {
                             attron(A_BOLD);
                         }
                         if (matrix[i][j].val == -1) {
-                            addch(' ');
-                        } else if (lambda && matrix[i][j].val != ' ') {
+                            add_wide_char(char_space);
+                        } else if (lambda && matrix[i][j].val != char_space) {
                             addstr("λ");
                         } else {
-                            /* addch doesn't seem to work with unicode
+                            /* add_wide_char doesn't seem to work with unicode
                              * characters and there was no direct equivalent.
                              * So, construct a c-style string with the character
                              * and print that.
                              */
-                            wchar_t char_array[2];
-                            char_array[0] = matrix[i][j].val;
-                            char_array[1] = 0;
-                            addwstr(char_array);
+                            add_wide_char(matrix[i][j].val);
                         }
                         if (bold == 2 ||
                             (bold == 1 && matrix[i][j].val % 2 == 0)) {
@@ -856,23 +868,22 @@ if (console) {
             int msg_y = COLS/2 - strlen(msg)/2;
             int i = 0;
 
-            //Add space before message
+            //Add char_space before message
             move(msg_x-1, msg_y-2);
             for(i = 0; i < strlen(msg)+4; i++)
-                addch(' ');
+                add_wide_char(char_space);
 
             //Write message
             move(msg_x, msg_y-2);
-            addch(' ');
-            addch(' ');
+            add_wide_char(char_space);
+            add_wide_char(char_space);
             addstr(msg);
-            addch(' ');
-            addch(' ');
+            add_wide_char(char_space);
+            add_wide_char(char_space);
 
-            //Add space after message
-            move(msg_x+1, msg_y-2);
-            for(i = 0; i < strlen(msg)+4; i++)
-                addch(' ');
+            //Add char_space after message
+            move(msg_x+1, msg_y-2); for(i = 0; i < strlen(msg)+4; i++)
+                add_wide_char(char_space);
         }
 
         napms(update * 10);
